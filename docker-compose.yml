@@ -1,0 +1,29 @@
+version: '3.8'
+
+services:
+  # Este es el servicio de nuestra API de FastAPI
+  api:
+    build: .
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./app:/app
+    depends_on:
+      - db
+    environment:
+      - DATABASE_URL=postgresql://user:password@db:5432/carting_db
+
+  # Este es el servicio de nuestra base de datos PostgreSQL
+  db:
+    image: postgres:15-alpine
+    volumes:
+      - postgres_data:/var/lib/postgresql/data/
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=user
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=carting_db
+
+volumes:
+  postgres_data:
