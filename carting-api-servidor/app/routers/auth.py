@@ -1,39 +1,52 @@
-# /app/routers/auth.py
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel, EmailStr
+# Simulación de nuestra conexión a la base de datos
+from ..db import get_db, Session
 
-# APIRouter nos permite agrupar rutas relacionadas en un solo archivo.
 router = APIRouter(
     prefix="/auth",
     tags=["Authentication"]
 )
 
-# Pydantic nos ayuda a definir cómo deben lucir los datos que recibimos.
-# Si la app envía datos que no cumplen este formato, la API los rechaza.
 class UserCreate(BaseModel):
     email: EmailStr
     password: str
     nombre_completo: str
 
-# Simulación de una función para "hashear" la contraseña.
 def get_password_hash(password: str):
-    # En un futuro, aquí usaremos una librería de criptografía como passlib.
-    # Por ahora, solo añadimos "hashed_" para simular el proceso.
     return f"hashed_{password}"
 
 @router.post("/register", status_code=201)
-async def register_user(user: UserCreate):
+async def register_user(user: UserCreate, db: Session = Depends(get_db)):
     """
-    Endpoint para registrar un nuevo usuario en la base de datos.
+    Endpoint para registrar un nuevo usuario. Ahora interactúa con la BD.
     """
-    # Aquí iría la lógica para guardar el usuario en la base de datos.
-    # Por ahora, simulamos el proceso.
+    # 1. Hashear la contraseña
     hashed_password = get_password_hash(user.password)
 
-    print(f"Usuario a crear: {user.email}, Nombre: {user.nombre_completo}, Pass-Hashed: {hashed_password}")
+    # 2. Crear la sentencia SQL para insertar el nuevo usuario
+    query = """
+        INSERT INTO usuarios (email, password_hash, nombre_completo)
+        VALUES (:email, :password_hash, :nombre_completo)
+        RETURNING id;
+    """
+    values = {
+        "email": user.email,
+        "password_hash": hashed_password,
+        "nombre_completo": user.nombre_completo
+    }
 
-    # En una aplicación real, verificaríamos si el email ya existe.
-    # Si ya existiera, devolveríamos un error:
-    # raise HTTPException(status_code=400, detail="El correo electrónico ya está registrado")
+    try:
+        # 3. Ejecutar la sentencia en la base de datos
+        new_user_id = db.execute(query, values).fetchone()[0]
+        db.commit() # Confirmar la transacción
+    except Exception as e:
+        # Si algo sale mal (ej. el email ya existe), revertimos y lanzamos un error
+        db.rollback()
+        raise HTTPException(status_code=400, detail=f"No se pudo registrar el usuario. Error: {e}")
 
-    return {"message": f"Usuario '{user.nombre_completo}' creado con éxito."}
+    return {
+        "message": "Usuario creado con éxito",
+        "user_id": new_user_id,
+        "email": user.email
+    }
