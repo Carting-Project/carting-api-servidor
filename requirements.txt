@@ -1,5 +1,4 @@
-fastapi
-uvicorn[standard]
+fastapi[all]
 psycopg2-binary
 SQLAlchemy
 alembic
