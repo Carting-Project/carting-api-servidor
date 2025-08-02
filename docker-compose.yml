@@ -6,8 +6,7 @@ services:
     build: .
     ports:
       - "8000:8000"
-    volumes:
-      - ./app:/app
+    # LA LÍNEA "- ./app:/app" HA SIDO ELIMINADA DE AQUÍ
     depends_on:
       - db
     environment:
